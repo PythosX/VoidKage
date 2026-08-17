@@ -7,7 +7,7 @@ from database.database import db, init_db
 from database.models import User, Document
 from auth.security import hash_pin, verify_pin
 from storage.manager import save_file, get_file_path, delete_file
-
+import requests
 load_dotenv()
 
 app = Flask(__name__)
