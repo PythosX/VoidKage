@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}VoidKage — Login{% endblock %}
+{% block content %}
+<main class="center">
+<section class="login-card glass">
+  <div class="logo">◈</div>
+  <h1>VOIDKAGE</h1>
+  <p class="muted">Your private digital dimension.</p>
+  <div class="telegram-box">
+    <div class="pulse"></div>
+    <h2>Telegram Identity</h2>
+    <p>Production login will use Telegram Login Widget. For local testing, use the demo identity below.</p>
+    <form method="post" action="/demo-login">
+      <input name="username" placeholder="Telegram username" value="demo_user">
+      <input name="telegram_id" placeholder="Numeric Telegram ID" value="100001">
+      <button>ENTER VOIDKAGE</button>
+    </form>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  </div>
+</section>
+</main>
+{% endblock %}

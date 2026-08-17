@@ -1,0 +1,1 @@
+document.addEventListener("DOMContentLoaded",()=>{document.querySelectorAll("form").forEach(f=>f.addEventListener("submit",()=>{const b=f.querySelector("button[type=submit],button:not(.ghost)");if(b&&f.enctype==="multipart/form-data"){b.disabled=true;b.textContent="UPLOADING..."}}))});

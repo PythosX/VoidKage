@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}VoidKage — Vault{% endblock %}
+{% block content %}
+<header class="topbar glass">
+  <div class="brand">◈ VOIDKAGE</div>
+  <div class="user">@{{ user.telegram_username or user.telegram_id }}</div>
+  <form method="post" action="/kill-all" onsubmit="return confirm('Terminate all VoidKage sessions? Your documents will NOT be deleted.')">
+    <button class="danger small">🚨 KILL ALL ACTIVITY</button>
+  </form>
+</header>
+
+<main class="dashboard">
+  <section class="hero">
+    <p class="eyebrow">DIGITAL DIMENSION</p>
+    <h1>Welcome back, {{ user.first_name or "User" }}.</h1>
+    <p class="muted">Your Telegram-linked document vault, available from anywhere.</p>
+  </section>
+
+  <section class="stats">
+    <div class="stat glass"><span>DOCUMENTS</span><strong>{{ documents|length }}</strong></div>
+    <div class="stat glass"><span>STORAGE</span><strong>{{ "%.2f"|format(total_bytes / 1048576) }} MB</strong></div>
+    <div class="stat glass"><span>SECURITY</span><strong>ONLINE</strong></div>
+  </section>
+
+  <section class="glass upload">
+    <h2>＋ Add document</h2>
+    <form method="post" action="/upload" enctype="multipart/form-data">
+      <input type="text" name="display_name" placeholder="Dedicated document name">
+      <input type="file" name="file" required>
+      <button>UPLOAD TO VOIDKAGE</button>
+    </form>
+  </section>
+
+  <section>
+    <div class="section-title"><h2>My Documents</h2><span>{{ documents|length }} files</span></div>
+    <div class="documents">
+      {% for d in documents %}
+      <article class="doc glass">
+        <div class="doc-icon">📄</div>
+        <div class="doc-info">
+          <h3>{{ d.display_name }}</h3>
+          <p>{{ d.original_filename }} · {{ "%.2f"|format(d.file_size / 1048576) }} MB</p>
+        </div>
+        <a class="button" href="{{ url_for('download', doc_id=d.id) }}">DOWNLOAD</a>
+        <form method="post" action="{{ url_for('rename', doc_id=d.id) }}" class="rename">
+          <input name="display_name" placeholder="Rename">
+          <button class="ghost">RENAME</button>
+        </form>
+        <form method="post" action="{{ url_for('delete', doc_id=d.id) }}" onsubmit="return confirm('Delete this document?')">
+          <button class="danger ghost">DELETE</button>
+        </form>
+      </article>
+      {% else %}
+      <div class="empty glass">No documents yet. Upload your first document.</div>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}

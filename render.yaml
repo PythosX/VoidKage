@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: voidkage
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: MAX_UPLOAD_MB
+        value: "20"
+      - key: UPLOAD_FOLDER
+        value: "storage/files"
