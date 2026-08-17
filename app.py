@@ -10,6 +10,11 @@ from storage.manager import save_file, get_file_path, delete_file
 
 load_dotenv()
 
+app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY", "change-me-in-production")
+app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_UPLOAD_MB", "20")) * 1024 * 1024
+app.config["UPLOAD_FOLDER"] = os.getenv("UPLOAD_FOLDER", "storage/files")
+
 @app.route("/admin/telegram-status")
 def telegram_status():
     import os
@@ -36,11 +41,6 @@ def telegram_status():
             "ok": False,
             "error": str(e)
         }, 500
-
-app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "change-me-in-production")
-app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_UPLOAD_MB", "20")) * 1024 * 1024
-app.config["UPLOAD_FOLDER"] = os.getenv("UPLOAD_FOLDER", "storage/files")
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 init_db(app)
