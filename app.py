@@ -80,11 +80,7 @@ def upload():
         return jsonify({"ok": False, "error": "No file selected"}), 400
     if not name:
         name = os.path.splitext(file.filename)[0][:120]
-    stored_name, size, mime = save_file(
-    file,
-    app.config["UPLOAD_FOLDER"],
-    user.id
-)
+    stored_name, size, mime = save_file(file, app.config["UPLOAD_FOLDER"], user.id)
     doc = Document(user_id=user.id, display_name=name[:120], original_filename=secure_filename(file.filename),
                    storage_key=stored_name, mime_type=mime, file_size=size)
     db.session.add(doc)
