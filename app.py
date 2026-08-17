@@ -69,6 +69,67 @@ def telegram_status():
             "error": str(e)
         }, 500
 
+def send_telegram_message(chat_id, text):
+    import os
+    import requests
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+
+    if not token:
+        app.logger.error("TELEGRAM_BOT_TOKEN is missing")
+        return
+
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={
+                "chat_id": chat_id,
+                "text": text
+            },
+            timeout=10
+        )
+    except Exception:
+        app.logger.exception("Failed to send Telegram message")
+
+@app.route("/telegram/webhook", methods=["POST"])
+def telegram_webhook():
+    import os
+    from flask import request, jsonify
+
+    secret = os.getenv("TELEGRAM_WEBHOOK_SECRET")
+
+    # Verify Telegram's secret header
+    if secret:
+        received_secret = request.headers.get(
+            "X-Telegram-Bot-Api-Secret-Token"
+        )
+
+        if received_secret != secret:
+            return jsonify({
+                "ok": False,
+                "error": "Unauthorized"
+            }), 403
+
+    update = request.get_json(silent=True) or {}
+
+    # Temporary testing response/logging
+    app.logger.info("Telegram update received: %s", update)
+
+    message = update.get("message", {})
+    text = message.get("text", "")
+
+    if text == "/start":
+        chat_id = message["chat"]["id"]
+
+        # Temporary response.
+        # We will replace this with the real VoidKage account system.
+        send_telegram_message(
+            chat_id,
+            "🌑 Welcome to VoidKage!\n\nYour Telegram connection is working."
+        )
+
+    return jsonify({"ok": True})
+
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 init_db(app)
 
