@@ -15,6 +15,33 @@ app.secret_key = os.getenv("SECRET_KEY", "change-me-in-production")
 app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_UPLOAD_MB", "20")) * 1024 * 1024
 app.config["UPLOAD_FOLDER"] = os.getenv("UPLOAD_FOLDER", "storage/files")
 
+@app.route("/admin/telegram-webhook")
+def telegram_webhook_status():
+    import os
+    import requests
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+
+    if not token:
+        return {
+            "ok": False,
+            "error": "TELEGRAM_BOT_TOKEN is not configured"
+        }, 500
+
+    try:
+        response = requests.get(
+            f"https://api.telegram.org/bot{token}/getWebhookInfo",
+            timeout=10
+        )
+
+        return response.json()
+
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": str(e)
+        }, 500
+
 @app.route("/admin/telegram-status")
 def telegram_status():
     import os
