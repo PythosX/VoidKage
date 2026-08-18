@@ -15,82 +15,6 @@ app.secret_key = os.getenv("SECRET_KEY", "change-me-in-production")
 app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_UPLOAD_MB", "20")) * 1024 * 1024
 app.config["UPLOAD_FOLDER"] = os.getenv("UPLOAD_FOLDER", "storage/files")
 
-@app.route("/admin/telegram-webhook")
-def telegram_webhook_status():
-    import os
-    import requests
-
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-
-    if not token:
-        return {
-            "ok": False,
-            "error": "TELEGRAM_BOT_TOKEN is not configured"
-        }, 500
-
-    try:
-        response = requests.get(
-            f"https://api.telegram.org/bot{token}/getWebhookInfo",
-            timeout=10
-        )
-
-        return response.json()
-
-    except Exception as e:
-        return {
-            "ok": False,
-            "error": str(e)
-        }, 500
-
-@app.route("/admin/telegram-status")
-def telegram_status():
-    import os
-    import requests
-
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-
-    if not token:
-        return {
-            "ok": False,
-            "error": "TELEGRAM_BOT_TOKEN is not configured"
-        }, 500
-
-    try:
-        response = requests.get(
-            f"https://api.telegram.org/bot{token}/getMe",
-            timeout=10
-        )
-
-        return response.json()
-
-    except Exception as e:
-        return {
-            "ok": False,
-            "error": str(e)
-        }, 500
-
-def send_telegram_message(chat_id, text):
-    import os
-    import requests
-
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-
-    if not token:
-        app.logger.error("TELEGRAM_BOT_TOKEN is missing")
-        return
-
-    try:
-        requests.post(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            json={
-                "chat_id": chat_id,
-                "text": text
-            },
-            timeout=10
-        )
-    except Exception:
-        app.logger.exception("Failed to send Telegram message")
-
 @app.route("/telegram/webhook", methods=["POST"])
 def telegram_webhook():
     import os
@@ -130,49 +54,6 @@ def telegram_webhook():
 
     return jsonify({"ok": True})
 
-@app.route("/admin/setup-telegram-webhook")
-def setup_telegram_webhook():
-    import os
-    import requests
-
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    secret = os.getenv("TELEGRAM_WEBHOOK_SECRET")
-
-    if not token:
-        return {
-            "ok": False,
-            "error": "TELEGRAM_BOT_TOKEN missing"
-        }, 500
-
-    if not secret:
-        return {
-            "ok": False,
-            "error": "TELEGRAM_WEBHOOK_SECRET missing"
-        }, 500
-
-    webhook_url = "https://voidkage.onrender.com/telegram/webhook"
-
-    try:
-        response = requests.post(
-            f"https://api.telegram.org/bot{token}/setWebhook",
-            json={
-                "url": webhook_url,
-                "secret_token": secret,
-                "allowed_updates": [
-                    "message",
-                    "callback_query"
-                ]
-            },
-            timeout=10
-        )
-
-        return response.json()
-
-    except Exception as e:
-        return {
-            "ok": False,
-            "error": str(e)
-        }, 500
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 init_db(app)
