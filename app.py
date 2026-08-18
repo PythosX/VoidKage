@@ -313,5 +313,8 @@ def kill_all():
 def health():
     return jsonify({"status": "ok", "service": "VoidKage"})
 
+configure_telegram_webhook()
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=False)
+    configure_telegram_webhook()
+    app.run()
