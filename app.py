@@ -494,29 +494,34 @@ def dashboard():
 # UPLOAD
 # ============================================================
 
-@app.route(
-    "/upload",
-    methods=["POST"]
-)
+@app.route("/upload", methods=["POST"])
 @login_required
 def upload():
 
     user = current_user()
 
-    file = request.files.get(
-        "file"
-    )
+    if not user:
+        return jsonify({
+            "ok": False,
+            "error": "Not authenticated"
+        }), 401
+
+    file = request.files.get("file")
 
     name = request.form.get(
         "display_name",
         ""
     ).strip()
 
+    # --------------------------------------------------------
+    # Check file
+    # --------------------------------------------------------
+
     if not file or not file.filename:
 
         return jsonify({
             "ok": False,
-            "error": "No file selected",
+            "error": "No file selected"
         }), 400
 
     if not name:
@@ -525,7 +530,21 @@ def upload():
             file.filename
         )[0][:120]
 
+    app.logger.info(
+        "VOIDKAGE UPLOAD START | user_id=%s | filename=%s",
+        user.id,
+        file.filename
+    )
+
     try:
+
+        # ----------------------------------------------------
+        # Save physical file
+        # ----------------------------------------------------
+
+        app.logger.info(
+            "VOIDKAGE UPLOAD | Saving file..."
+        )
 
         stored_name, size, mime = save_file(
             file,
@@ -533,39 +552,61 @@ def upload():
             user.id
         )
 
+        app.logger.info(
+            "VOIDKAGE UPLOAD | File saved | key=%s | size=%s",
+            stored_name,
+            size
+        )
+
+        # ----------------------------------------------------
+        # Create database document
+        # ----------------------------------------------------
+
+        safe_filename = secure_filename(
+            file.filename
+        )
+
         doc = Document(
             user_id=user.id,
             display_name=name[:120],
-            original_filename=secure_filename(
-                file.filename
-            ),
+            original_filename=safe_filename,
             storage_key=stored_name,
             mime_type=mime,
-            file_size=size,
+            file_size=size
+        )
+
+        app.logger.info(
+            "VOIDKAGE UPLOAD | Creating database record..."
         )
 
         db.session.add(doc)
 
         db.session.commit()
 
-    except Exception:
+        app.logger.info(
+            "VOIDKAGE UPLOAD SUCCESS | document_id=%s",
+            doc.id
+        )
+
+        return redirect(
+            url_for("dashboard")
+        )
+
+    except Exception as e:
 
         db.session.rollback()
 
         app.logger.exception(
-            "Document upload failed"
+            "VOIDKAGE UPLOAD FAILED | user_id=%s | filename=%s",
+            user.id,
+            file.filename
         )
 
         return jsonify({
             "ok": False,
             "error": "Upload failed",
+            "stage": "Check Render logs"
         }), 500
-
-    return redirect(
-        url_for("dashboard")
-    )
-
-
 # ============================================================
 # DOWNLOAD
 # ============================================================
