@@ -3,11 +3,36 @@ services:
     name: voidkage
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn --workers 1 --threads 4 --timeout 120 app:app
+    healthCheckPath: /health
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: MAX_UPLOAD_MB
         value: "20"
-      - key: UPLOAD_FOLDER
-        value: "storage/files"
+      - key: WEB_SESSION_HOURS
+        value: "24"
+      - key: TELEGRAM_SESSION_MINUTES
+        value: "60"
+      - key: PASSWORD_SETUP_MINUTES
+        value: "10"
+      - key: MAX_LOGIN_ATTEMPTS
+        value: "5"
+      - key: LOCKOUT_MINUTES
+        value: "15"
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: voidkage-documents
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: WEB_URL
+        value: https://voidkage.onrender.com
