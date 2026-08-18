@@ -3,7 +3,9 @@
 VoidKage is a Telegram-linked private document vault. The same account can authenticate on the web and inside the Telegram bot using one password.
 
 **Web:** https://voidkage.onrender.com/
+
 **Telegram:** https://t.me/VoidKageBot
+
 **GitHub:** https://github.com/PythosX
 
 ## Production authentication
