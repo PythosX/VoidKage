@@ -130,6 +130,50 @@ def telegram_webhook():
 
     return jsonify({"ok": True})
 
+@app.route("/admin/setup-telegram-webhook")
+def setup_telegram_webhook():
+    import os
+    import requests
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    secret = os.getenv("TELEGRAM_WEBHOOK_SECRET")
+
+    if not token:
+        return {
+            "ok": False,
+            "error": "TELEGRAM_BOT_TOKEN missing"
+        }, 500
+
+    if not secret:
+        return {
+            "ok": False,
+            "error": "TELEGRAM_WEBHOOK_SECRET missing"
+        }, 500
+
+    webhook_url = "https://voidkage.onrender.com/telegram/webhook"
+
+    try:
+        response = requests.post(
+            f"https://api.telegram.org/bot{token}/setWebhook",
+            json={
+                "url": webhook_url,
+                "secret_token": secret,
+                "allowed_updates": [
+                    "message",
+                    "callback_query"
+                ]
+            },
+            timeout=10
+        )
+
+        return response.json()
+
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": str(e)
+        }, 500
+
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 init_db(app)
 
