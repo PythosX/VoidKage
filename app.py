@@ -54,6 +54,148 @@ def telegram_webhook():
 
     return jsonify({"ok": True})
 
+def send_telegram_message(chat_id, text):
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+
+    if not token:
+        app.logger.error("TELEGRAM_BOT_TOKEN is missing")
+        return False
+
+    try:
+        response = requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={
+                "chat_id": chat_id,
+                "text": text
+            },
+            timeout=10
+        )
+
+        response.raise_for_status()
+
+        return True
+
+    except Exception:
+        app.logger.exception("Telegram message failed")
+        return False
+
+@app.route("/telegram/webhook", methods=["POST"])
+def telegram_webhook():
+
+    # Verify Telegram webhook secret
+    expected_secret = os.getenv("TELEGRAM_WEBHOOK_SECRET")
+
+    if expected_secret:
+        received_secret = request.headers.get(
+            "X-Telegram-Bot-Api-Secret-Token"
+        )
+
+        if received_secret != expected_secret:
+            return jsonify({
+                "ok": False,
+                "error": "Unauthorized"
+            }), 403
+
+    update = request.get_json(silent=True) or {}
+
+    app.logger.info(
+        "Telegram update received: %s",
+        update
+    )
+
+    message = update.get("message", {})
+
+    if not message:
+        return jsonify({"ok": True})
+
+    chat = message.get("chat", {})
+    user = message.get("from", {})
+
+    chat_id = chat.get("id")
+    text = message.get("text", "")
+
+    if not chat_id:
+        return jsonify({"ok": True})
+
+    # /start
+    if text == "/start":
+
+        first_name = user.get("first_name", "User")
+        username = user.get("username")
+
+        if username:
+            display_name = f"@{username}"
+        else:
+            display_name = first_name
+
+        reply = (
+            "🌑 VOIDKAGE\n\n"
+            f"Welcome, {display_name}.\n\n"
+            "Your Telegram connection is working.\n\n"
+            "📁 My Documents\n"
+            "➕ Add Document\n"
+            "🌐 Web Vault\n"
+            "⚙️ Account\n"
+            "🚨 Kill All Activity"
+        )
+
+        send_telegram_message(chat_id, reply)
+
+    return jsonify({"ok": True})
+
+def configure_telegram_webhook():
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    secret = os.getenv("TELEGRAM_WEBHOOK_SECRET")
+
+    if not token:
+        app.logger.warning(
+            "TELEGRAM_BOT_TOKEN is not configured"
+        )
+        return
+
+    if not secret:
+        app.logger.warning(
+            "TELEGRAM_WEBHOOK_SECRET is not configured"
+        )
+        return
+
+    webhook_url = "https://voidkage.onrender.com/telegram/webhook"
+
+    try:
+        response = requests.post(
+            f"https://api.telegram.org/bot{token}/setWebhook",
+            json={
+                "url": webhook_url,
+                "secret_token": secret,
+                "allowed_updates": [
+                    "message",
+                    "callback_query"
+                ]
+            },
+            timeout=15
+        )
+
+        result = response.json()
+
+        if result.get("ok"):
+            app.logger.info(
+                "VoidKage Telegram webhook configured successfully."
+            )
+        else:
+            app.logger.error(
+                "Telegram webhook configuration failed: %s",
+                result
+            )
+
+    except Exception:
+        app.logger.exception(
+            "Unable to configure Telegram webhook"
+        )
+
+
+
+
+
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 init_db(app)
