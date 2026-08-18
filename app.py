@@ -2,6 +2,7 @@ import os
 from functools import wraps
 
 import requests
+import json
 from dotenv import load_dotenv
 from flask import (
     Flask,
@@ -63,6 +64,188 @@ TELEGRAM_BOT_TOKEN = os.getenv(
 TELEGRAM_WEBHOOK_SECRET = os.getenv(
     "TELEGRAM_WEBHOOK_SECRET"
 )
+
+
+# ============================================================
+# VOIDKAGE TELEGRAM
+# ============================================================
+
+TELEGRAM_API = "https://api.telegram.org/bot{}"
+
+
+def telegram_request(method, payload=None):
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+
+    if not token:
+        app.logger.error(
+            "TELEGRAM_BOT_TOKEN is missing"
+        )
+        return None
+
+    try:
+        response = requests.post(
+            f"{TELEGRAM_API.format(token)}/{method}",
+            json=payload or {},
+            timeout=15
+        )
+
+        response.raise_for_status()
+
+        return response.json()
+
+    except Exception:
+        app.logger.exception(
+            "Telegram API request failed: %s",
+            method
+        )
+
+        return None
+
+
+def send_telegram_message(
+    chat_id,
+    text,
+    keyboard=None
+):
+
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+
+    if keyboard:
+        payload["reply_markup"] = {
+            "inline_keyboard": keyboard
+        }
+
+    return telegram_request(
+        "sendMessage",
+        payload
+    )
+
+
+def answer_callback_query(
+    callback_query_id,
+    text=None
+):
+
+    payload = {
+        "callback_query_id": callback_query_id
+    }
+
+    if text:
+        payload["text"] = text
+
+    return telegram_request(
+        "answerCallbackQuery",
+        payload
+    )
+
+
+def edit_telegram_message(
+    chat_id,
+    message_id,
+    text,
+    keyboard=None
+):
+
+    payload = {
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+
+    if keyboard is not None:
+        payload["reply_markup"] = {
+            "inline_keyboard": keyboard
+        }
+
+    return telegram_request(
+        "editMessageText",
+        payload
+    )
+
+def voidkage_main_keyboard():
+
+    return [
+
+        [
+            {
+                "text": "📂 MY DOCUMENTS",
+                "callback_data": "documents"
+            }
+        ],
+
+        [
+            {
+                "text": "➕ ADD DOCUMENT",
+                "callback_data": "add_document"
+            }
+        ],
+
+        [
+            {
+                "text": "🌐 WEB VAULT",
+                "url": "https://voidkage.onrender.com"
+            }
+        ],
+
+        [
+            {
+                "text": "⚙️ ACCOUNT",
+                "callback_data": "account"
+            }
+        ],
+
+        [
+            {
+                "text": "🚨 KILL ALL ACTIVITY",
+                "callback_data": "kill_all"
+            }
+        ]
+
+    ]
+
+
+def send_voidkage_home(chat_id, username=None):
+
+    if username:
+        identity = f"@{username}"
+    else:
+        identity = "Traveler"
+
+    text = (
+        "🌑 <b>VOIDKAGE</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+
+        f"⚡ Welcome back, <b>{identity}</b>.\n\n"
+
+        "🔐 <b>YOUR DIGITAL VAULT</b>\n"
+        "🟢 Connection: <b>ONLINE</b>\n"
+        "🛡️ Security: <b>ACTIVE</b>\n\n"
+
+        "What would you like to do?\n\n"
+
+        "📂 Access your documents\n"
+        "➕ Add a new document\n"
+        "🌐 Open your web vault\n"
+        "⚙️ Manage your account\n"
+        "🚨 Kill active sessions\n\n"
+
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🜏 <i>VOIDKAGE // SECURE VAULT</i>"
+    )
+
+    send_telegram_message(
+        chat_id,
+        text,
+        voidkage_main_keyboard()
+    )
+
+
+
 
 
 # ============================================================
