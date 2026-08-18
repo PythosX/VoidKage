@@ -1,223 +1,121 @@
+import io
+import mimetypes
 import os
 import uuid
 from werkzeug.utils import secure_filename
-
-
-# ============================================================
-# VOIDKAGE ALLOWED DOCUMENT TYPES
-# ============================================================
+import requests
+from urllib.parse import quote
 
 ALLOWED_EXTENSIONS = {
-    # Documents
-    "pdf",
-    "txt",
-    "rtf",
-    "md",
-
-    # Microsoft Office
-    "doc",
-    "docx",
-    "xls",
-    "xlsx",
-    "ppt",
-    "pptx",
-
-    # OpenDocument
-    "odt",
-    "ods",
-    "odp",
-
-    # Web / text files
-    "html",
-    "htm",
-    "css",
-    "js",
-    "json",
-    "xml",
-    "csv",
-
-    # Images
-    "jpg",
-    "jpeg",
-    "png",
-    "gif",
-    "webp",
-    "svg",
-
-    # Archives
-    "zip",
-    "7z",
-    "tar",
-    "gz"
+    "pdf", "txt", "rtf", "md", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+    "odt", "ods", "odp", "html", "htm", "css", "js", "json", "xml", "csv",
+    "jpg", "jpeg", "png", "gif", "webp", "svg", "zip", "7z", "tar", "gz"
 }
 
 
-def allowed_file(filename):
-    """
-    Check whether the uploaded file has an allowed extension.
-    """
+class StorageError(Exception):
+    pass
 
+
+def allowed_file(filename):
     if not filename:
         return False
-
     filename = secure_filename(filename)
-
-    if "." not in filename:
-        return False
-
-    extension = filename.rsplit(".", 1)[1].lower()
-
-    return extension in ALLOWED_EXTENSIONS
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 def get_extension(filename):
-    """
-    Return the lowercase extension without the dot.
-    """
+    filename = secure_filename(filename or "")
+    return filename.rsplit(".", 1)[1].lower() if "." in filename else ""
 
-    filename = secure_filename(filename)
 
-    if "." not in filename:
-        return ""
+def _supabase_configured():
+    return bool(os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_ROLE_KEY") and os.getenv("SUPABASE_BUCKET"))
 
-    return filename.rsplit(".", 1)[1].lower()
+
+def _supabase_headers(content_type=None):
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    headers = {"Authorization": f"Bearer {key}", "apikey": key}
+    if content_type:
+        headers["Content-Type"] = content_type
+    return headers
+
+
+def _supabase_url(storage_key):
+    base = os.getenv("SUPABASE_URL", "").rstrip("/")
+    bucket = os.getenv("SUPABASE_BUCKET", "voidkage-documents")
+    encoded = "/".join(quote(p, safe="") for p in storage_key.split("/"))
+    return f"{base}/storage/v1/object/{quote(bucket, safe='')}/{encoded}"
 
 
 def save_file(file, upload_folder, user_id):
-    """
-    Save an uploaded file to the user's VoidKage storage.
-
-    Returns:
-        stored_name
-        file_size
-        mime_type
-    """
-
     if not file:
-        raise ValueError("No file provided.")
+        raise StorageError("No file provided.")
 
-    original_filename = secure_filename(
-        file.filename or ""
-    )
-
+    original_filename = secure_filename(file.filename or "")
     if not original_filename:
-        raise ValueError("Invalid filename.")
-
+        raise StorageError("Invalid filename.")
     if not allowed_file(original_filename):
         extension = get_extension(original_filename)
+        raise StorageError(f"File type is not allowed: .{extension or 'unknown'}")
 
-        raise ValueError(
-            f"File type is not allowed: .{extension}"
-        )
+    extension = get_extension(original_filename)
+    unique_name = f"{uuid.uuid4().hex}.{extension}"
+    stored_name = f"{user_id}/{unique_name}"
+    mime_type = file.mimetype or mimetypes.guess_type(original_filename)[0] or "application/octet-stream"
 
-    # --------------------------------------------------------
-    # Create user-specific folder
-    # --------------------------------------------------------
+    if _supabase_configured():
+        try:
+            data = file.read()
+            response = requests.post(
+                _supabase_url(stored_name),
+                headers={**_supabase_headers(mime_type), "x-upsert": "false"},
+                data=data,
+                timeout=90,
+            )
+            if response.status_code >= 300:
+                raise StorageError(f"Supabase upload failed ({response.status_code}).")
+            return stored_name, len(data), mime_type
+        except StorageError:
+            raise
+        except Exception as exc:
+            raise StorageError("Cloud storage upload failed.") from exc
 
-    user_folder = os.path.join(
-        upload_folder,
-        str(user_id)
-    )
-
-    os.makedirs(
-        user_folder,
-        exist_ok=True
-    )
-
-    # --------------------------------------------------------
-    # Generate unique storage filename
-    # --------------------------------------------------------
-
-    extension = get_extension(
-        original_filename
-    )
-
-    unique_name = (
-        f"{uuid.uuid4().hex}.{extension}"
-    )
-
-    file_path = os.path.join(
-        user_folder,
-        unique_name
-    )
-
-    # --------------------------------------------------------
-    # Save file
-    # --------------------------------------------------------
-
+    user_folder = os.path.join(upload_folder, str(user_id))
+    os.makedirs(user_folder, exist_ok=True)
+    file_path = os.path.join(user_folder, unique_name)
     file.save(file_path)
-
-    # --------------------------------------------------------
-    # Get file size
-    # --------------------------------------------------------
-
-    file_size = os.path.getsize(
-        file_path
-    )
-
-    # --------------------------------------------------------
-    # MIME type
-    # --------------------------------------------------------
-
-    mime_type = (
-        file.mimetype
-        or "application/octet-stream"
-    )
-
-    # Storage key used by the database
-    stored_name = os.path.join(
-        str(user_id),
-        unique_name
-    )
-
-    return (
-        stored_name,
-        file_size,
-        mime_type
-    )
+    return stored_name, os.path.getsize(file_path), mime_type
 
 
-def get_file_path(
-    storage_key,
-    upload_folder
-):
-    """
-    Convert a database storage key into
-    the actual filesystem path.
-    """
+def download_file(storage_key, upload_folder):
+    if _supabase_configured():
+        response = requests.get(_supabase_url(storage_key), headers=_supabase_headers(), timeout=90)
+        if response.status_code != 200:
+            raise StorageError("Stored file is unavailable.")
+        return io.BytesIO(response.content)
 
-    # Prevent path traversal
-    storage_key = storage_key.replace(
-        "\\",
-        "/"
-    )
-
-    parts = [
-        part
-        for part in storage_key.split("/")
-        if part not in ("", ".", "..")
-    ]
-
-    safe_key = os.path.join(*parts)
-
-    return os.path.join(
-        upload_folder,
-        safe_key
-    )
+    path = get_file_path(storage_key, upload_folder)
+    if not os.path.exists(path):
+        raise StorageError("Stored file is unavailable.")
+    return path
 
 
-def delete_file(
-    storage_key,
-    upload_folder
-):
-    """
-    Delete a stored file safely.
-    """
+def get_file_path(storage_key, upload_folder):
+    storage_key = (storage_key or "").replace("\\", "/")
+    parts = [part for part in storage_key.split("/") if part not in ("", ".", "..")]
+    if not parts:
+        raise StorageError("Invalid storage key.")
+    return os.path.join(upload_folder, *parts)
 
-    path = get_file_path(
-        storage_key,
-        upload_folder
-    )
 
+def delete_file(storage_key, upload_folder):
+    if _supabase_configured():
+        response = requests.delete(_supabase_url(storage_key), headers=_supabase_headers(), timeout=30)
+        if response.status_code not in (200, 204):
+            raise StorageError("Cloud deletion failed.")
+        return
+
+    path = get_file_path(storage_key, upload_folder)
     if os.path.exists(path):
         os.remove(path)
