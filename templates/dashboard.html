@@ -2,32 +2,52 @@
 {% block title %}VoidKage — Vault{% endblock %}
 {% block content %}
 <header class="topbar glass">
-  <div class="brand">◈ VOIDKAGE</div>
+  <div class="brand">🌑 VOIDKAGE</div>
   <div class="user">@{{ user.telegram_username or user.telegram_id }}</div>
-  <form method="post" action="/kill-all" onsubmit="return confirm('Terminate all VoidKage sessions? Your documents will NOT be deleted.')">
-    <button class="danger small">🚨 KILL ALL ACTIVITY</button>
+  <form method="post" action="{{ url_for('logout') }}">
+    <input name="csrf_token" type="hidden" value="{{ csrf_token }}">
+    <button class="ghost small" type="submit">🚪 LOGOUT</button>
+  </form>
+  <form method="post" action="{{ url_for('kill_all') }}" onsubmit="return confirm('Terminate all VoidKage sessions? Your documents will NOT be deleted.')">
+    <input name="csrf_token" type="hidden" value="{{ csrf_token }}">
+    <button class="danger small" type="submit">🚨 KILL ALL ACTIVITY</button>
   </form>
 </header>
 
 <main class="dashboard">
+  {% if error %}<div class="error glass">{{ error }}</div>{% endif %}
   <section class="hero">
-    <p class="eyebrow">DIGITAL DIMENSION</p>
+    <p class="eyebrow">DIGITAL DIMENSION // AUTHENTICATED</p>
     <h1>Welcome back, {{ user.first_name or "User" }}.</h1>
-    <p class="muted">Your Telegram-linked document vault, available from anywhere.</p>
+    <p class="muted">Your Telegram-linked document vault, protected by your VoidKage password.</p>
   </section>
 
   <section class="stats">
     <div class="stat glass"><span>DOCUMENTS</span><strong>{{ documents|length }}</strong></div>
     <div class="stat glass"><span>STORAGE</span><strong>{{ "%.2f"|format(total_bytes / 1048576) }} MB</strong></div>
-    <div class="stat glass"><span>SECURITY</span><strong>ONLINE</strong></div>
+    <div class="stat glass"><span>SECURITY</span><strong>ACTIVE</strong></div>
   </section>
 
   <section class="glass upload">
     <h2>＋ Add document</h2>
-    <form method="post" action="/upload" enctype="multipart/form-data">
-      <input type="text" name="display_name" placeholder="Dedicated document name">
+    <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data">
+      <input name="csrf_token" type="hidden" value="{{ csrf_token }}">
+      <input type="text" name="display_name" placeholder="Dedicated document name" maxlength="120">
       <input type="file" name="file" required>
-      <button>UPLOAD TO VOIDKAGE</button>
+      <button type="submit">UPLOAD TO VOIDKAGE</button>
+    </form>
+    <p class="muted tiny">Maximum file size: {{ max_upload_mb }} MB. Cloud storage is used when Supabase is configured.</p>
+  </section>
+
+  <section class="glass password-card">
+    <h2>🔑 Change password</h2>
+    <p class="muted">Changing your password invalidates existing web and Telegram authentication sessions.</p>
+    <form method="post" action="{{ url_for('change_password') }}" class="password-form">
+      <input name="csrf_token" type="hidden" value="{{ csrf_token }}">
+      <input type="password" name="current_password" placeholder="Current password" autocomplete="current-password" required>
+      <input type="password" name="new_password" placeholder="New password (8–128 chars)" autocomplete="new-password" minlength="8" maxlength="128" required>
+      <input type="password" name="confirm_password" placeholder="Confirm new password" autocomplete="new-password" minlength="8" maxlength="128" required>
+      <button type="submit">UPDATE PASSWORD</button>
     </form>
   </section>
 
@@ -37,22 +57,19 @@
       {% for d in documents %}
       <article class="doc glass">
         <div class="doc-icon">📄</div>
-        <div class="doc-info">
-          <h3>{{ d.display_name }}</h3>
-          <p>{{ d.original_filename }} · {{ "%.2f"|format(d.file_size / 1048576) }} MB</p>
-        </div>
+        <div class="doc-info"><h3>{{ d.display_name }}</h3><p>{{ d.original_filename }} · {{ "%.2f"|format(d.file_size / 1048576) }} MB</p></div>
         <a class="button" href="{{ url_for('download', doc_id=d.id) }}">DOWNLOAD</a>
         <form method="post" action="{{ url_for('rename', doc_id=d.id) }}" class="rename">
-          <input name="display_name" placeholder="Rename">
-          <button class="ghost">RENAME</button>
+          <input name="csrf_token" type="hidden" value="{{ csrf_token }}">
+          <input name="display_name" placeholder="Rename" maxlength="120">
+          <button class="ghost" type="submit">RENAME</button>
         </form>
         <form method="post" action="{{ url_for('delete', doc_id=d.id) }}" onsubmit="return confirm('Delete this document?')">
-          <button class="danger ghost">DELETE</button>
+          <input name="csrf_token" type="hidden" value="{{ csrf_token }}">
+          <button class="danger ghost" type="submit">DELETE</button>
         </form>
       </article>
-      {% else %}
-      <div class="empty glass">No documents yet. Upload your first document.</div>
-      {% endfor %}
+      {% else %}<div class="empty glass">No documents yet. Upload your first document.</div>{% endfor %}
     </div>
   </section>
 </main>
