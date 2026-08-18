@@ -1,21 +1,29 @@
 {% extends "base.html" %}
-{% block title %}VoidKage — Login{% endblock %}
+{% block title %}VoidKage — Secure Login{% endblock %}
 {% block content %}
 <main class="center">
 <section class="login-card glass">
-  <div class="logo">◈</div>
+  <div class="logo">🌑</div>
+  <p class="eyebrow">SECURE DIGITAL VAULT</p>
   <h1>VOIDKAGE</h1>
-  <p class="muted">Your private digital dimension.</p>
+  <p class="muted">One account. One password. Your vault everywhere.</p>
+
   <div class="telegram-box">
     <div class="pulse"></div>
-    <h2>Telegram Identity</h2>
-    <p>Production login will use Telegram Login Widget. For local testing, use the demo identity below.</p>
-    <form method="post" action="/demo-login">
-      <input name="username" placeholder="Telegram username" value="demo_user">
-      <input name="telegram_id" placeholder="Numeric Telegram ID" value="100001">
-      <button>ENTER VOIDKAGE</button>
-    </form>
+    <h2>🔐 Secure Login</h2>
+    <p class="muted">Use your Telegram username or permanent Telegram ID and your VoidKage password.</p>
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    {% if request.args.get('changed') %}<div class="success">✅ Password changed. Please sign in again.</div>{% endif %}
+    <form method="post" action="{{ url_for('login') }}" autocomplete="on">
+      <input name="csrf_token" type="hidden" value="{{ csrf_token }}">
+      <input name="identifier" placeholder="Telegram username or ID" value="{{ identifier or '' }}" autocomplete="username" required>
+      <input name="password" type="password" placeholder="VoidKage password" autocomplete="current-password" required>
+      <button type="submit">🔓 ENTER VOIDKAGE</button>
+    </form>
+    <div class="login-help">
+      <span>New / old account without a password?</span>
+      <a href="https://t.me/VoidKageBot" target="_blank" rel="noopener">🤖 Open @VoidKageBot → /start</a>
+    </div>
   </div>
 </section>
 </main>
